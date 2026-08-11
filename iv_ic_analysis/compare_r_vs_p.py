@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Compare Ites vs Ibias curves between two IV files for each channel (< 32),
+Compare Ites vs Ibias curves between two IV files for each channel (>= 32),
 calculate ΔItes = Ites_file1 - Ites_file2 difference, and perform Fourier Transform (FFT)
 analysis on ΔItes(Ibias) to extract the SQUID mutual inductance periodic error (M_I * Phi_0).
 """
@@ -74,38 +74,43 @@ def load_and_compute_channel_data(filepath, channel_id, rbias=10e3, Rshunt=250e-
     return ibias_mA, ites_uA, rtes_mOhm, ptes_pW
 
 
-def get_active_channels(filepath, threshold=0.05, max_channel=32):
-    """Identify channels with significant signal variation up to max_channel."""
+def get_active_channels(filepath, threshold=0.05, min_channel=32, max_channel=None):
+    """Identify channels with significant signal variation within channel bounds."""
     with np.load(filepath) as data:
         ang2 = data['ang2']
     stds = np.std(ang2, axis=0)
     channels = np.where(stds > threshold)[0]
+    if min_channel is not None:
+        channels = [ch for ch in channels if ch >= min_channel]
     if max_channel is not None:
-        channels = [ch for ch in channels if ch < max_channel]
+        channels = [ch for ch in channels if ch <= max_channel]
     return channels
 
 
 def plot_ites_vs_ibias_comparison(file1, file2, channels=None, label1="sample rate ~ 244 kHz", label2="sample rate ~ 122 kHz",
-                                  rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None):
+                                  rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None, min_channel=32, max_channel=None):
     """
-    Plots Ites (uA) vs Ibias (mA) subplots comparing file1 and file2 for each channel (< 32).
+    Plots Ites (uA) vs Ibias (mA) subplots comparing file1 and file2 for each channel (>= min_channel).
     """
     if channels is None:
-        ch1 = get_active_channels(file1, max_channel=32)
-        ch2 = get_active_channels(file2, max_channel=32)
+        ch1 = get_active_channels(file1, min_channel=min_channel, max_channel=max_channel)
+        ch2 = get_active_channels(file2, min_channel=min_channel, max_channel=max_channel)
         channels = sorted(list(set(ch1).union(set(ch2))))
     else:
-        channels = [ch for ch in channels if ch < 32]
+        if min_channel is not None:
+            channels = [ch for ch in channels if ch >= min_channel]
+        if max_channel is not None:
+            channels = [ch for ch in channels if ch <= max_channel]
 
     if not channels:
-        print("No channels < 32 found to plot.")
+        print(f"No channels >= {min_channel} found to plot.")
         return
 
     num_channels = len(channels)
     plots_per_page = rows * cols
     num_pages = int(np.ceil(num_channels / plots_per_page))
 
-    print(f"\n[1/3] Plotting Ites vs Ibias curves for {num_channels} channels (< 32)...")
+    print(f"\n[1/3] Plotting Ites vs Ibias curves for {num_channels} channels (>= {min_channel})...")
 
     for page in range(num_pages):
         fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 3.2), sharex=False, sharey=False)
@@ -134,7 +139,7 @@ def plot_ites_vs_ibias_comparison(file1, file2, channels=None, label1="sample ra
         for j in range(len(page_channels), len(axes)):
             fig.delaxes(axes[j])
 
-        fig.suptitle(f"Ites vs Ibias Comparison (Ch < 32): Page {page + 1}/{num_pages}", fontsize=14, fontweight='bold')
+        fig.suptitle(f"Ites vs Ibias Comparison (Ch >= {min_channel}): Page {page + 1}/{num_pages}", fontsize=14, fontweight='bold')
         plt.tight_layout()
 
         if save_path:
@@ -144,26 +149,29 @@ def plot_ites_vs_ibias_comparison(file1, file2, channels=None, label1="sample ra
 
 
 def plot_ites_vs_ibias_difference(file1, file2, channels=None, label1="sample rate ~ 244 kHz", label2="sample rate ~ 122 kHz",
-                                  rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None):
+                                  rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None, min_channel=32, max_channel=None):
     """
-    Plots ΔItes = Ites_file1 - Ites_file2 (uA) vs Ibias (mA) subplots for each channel (< 32).
+    Plots ΔItes = Ites_file1 - Ites_file2 (uA) vs Ibias (mA) subplots for each channel (>= min_channel).
     """
     if channels is None:
-        ch1 = get_active_channels(file1, max_channel=32)
-        ch2 = get_active_channels(file2, max_channel=32)
+        ch1 = get_active_channels(file1, min_channel=min_channel, max_channel=max_channel)
+        ch2 = get_active_channels(file2, min_channel=min_channel, max_channel=max_channel)
         channels = sorted(list(set(ch1).union(set(ch2))))
     else:
-        channels = [ch for ch in channels if ch < 32]
+        if min_channel is not None:
+            channels = [ch for ch in channels if ch >= min_channel]
+        if max_channel is not None:
+            channels = [ch for ch in channels if ch <= max_channel]
 
     if not channels:
-        print("No channels < 32 found to plot difference.")
+        print(f"No channels >= {min_channel} found to plot difference.")
         return
 
     num_channels = len(channels)
     plots_per_page = rows * cols
     num_pages = int(np.ceil(num_channels / plots_per_page))
 
-    print(f"\n[2/3] Plotting Difference Delta Ites = Ites({label1}) - Ites({label2}) for {num_channels} channels (< 32)...")
+    print(f"\n[2/3] Plotting Difference Delta Ites = Ites({label1}) - Ites({label2}) for {num_channels} channels (>= {min_channel})...")
 
     for page in range(num_pages):
         fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 3.2), sharex=False, sharey=False)
@@ -213,26 +221,29 @@ def plot_ites_vs_ibias_difference(file1, file2, channels=None, label1="sample ra
             print(f"Saved Delta Ites plot to: {out_file}")
 
 
-def plot_ites_vs_ibias_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None):
+def plot_ites_vs_ibias_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None, min_channel=32, max_channel=None):
     """
     Computes and plots Fourier Transform (FFT) spectra of ΔItes(Ibias) to measure SQUID mutual inductance periodicity (M_I * Phi_0).
     """
     if channels is None:
-        ch1 = get_active_channels(file1, max_channel=32)
-        ch2 = get_active_channels(file2, max_channel=32)
+        ch1 = get_active_channels(file1, min_channel=min_channel, max_channel=max_channel)
+        ch2 = get_active_channels(file2, min_channel=min_channel, max_channel=max_channel)
         channels = sorted(list(set(ch1).union(set(ch2))))
     else:
-        channels = [ch for ch in channels if ch < 32]
+        if min_channel is not None:
+            channels = [ch for ch in channels if ch >= min_channel]
+        if max_channel is not None:
+            channels = [ch for ch in channels if ch <= max_channel]
 
     if not channels:
-        print("No channels < 32 found to analyze FFT.")
+        print(f"No channels >= {min_channel} found to analyze FFT.")
         return
 
     num_channels = len(channels)
     plots_per_page = rows * cols
     num_pages = int(np.ceil(num_channels / plots_per_page))
 
-    print(f"\n[3/3] Computing Fourier Transform (FFT) spectra of Delta Ites(Ibias) for {num_channels} channels (< 32)...")
+    print(f"\n[3/3] Computing Fourier Transform (FFT) spectra of Delta Ites(Ibias) for {num_channels} channels (>= {min_channel})...")
 
     for page in range(num_pages):
         fig, axes = plt.subplots(rows, cols, figsize=(cols * 4, rows * 3.2), sharex=False, sharey=False)
@@ -281,7 +292,6 @@ def plot_ites_vs_ibias_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-
                             if freqs[peak_idx] > 0:
                                 peak_freq = freqs[peak_idx]
                                 peak_period_mA = 1.0 / peak_freq
-                                peak_period_uA = peak_period_mA * 1000
                                 ax.annotate(
                                     f"T={peak_period_mA*1e3:.1f}μA",
                                     xy=(peak_freq, fft_mag[peak_idx]),
@@ -311,7 +321,7 @@ def plot_ites_vs_ibias_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-
 
 def main(args_list=None):
     parser = argparse.ArgumentParser(
-        description="Compare Ites vs Ibias curves, calculate ΔItes = Ites1 - Ites2, and analyze SQUID M_I*Phi_0 wiggle periods via FFT for channels < 32."
+        description="Compare Ites vs Ibias curves, calculate ΔItes = Ites1 - Ites2, and analyze SQUID M_I*Phi_0 wiggle periods via FFT for channels >= 32."
     )
     def_f1, def_f2 = find_default_files()
 
@@ -319,8 +329,9 @@ def main(args_list=None):
     parser.add_argument("--file2", type=str, default=def_f2, help="Path to second IV .npz file")
     parser.add_argument("--label1", type=str, default="sample rate ~ 244 kHz", help="Legend label for File 1")
     parser.add_argument("--label2", type=str, default="sample rate ~ 122 kHz", help="Legend label for File 2")
-    parser.add_argument("--max-channel", type=int, default=32, help="Upper channel limit (default: 32)")
-    parser.add_argument("--channels", type=int, nargs="+", default=None, help="Channel IDs to plot (< 32)")
+    parser.add_argument("--min-channel", type=int, default=32, help="Lower channel limit (default: 32)")
+    parser.add_argument("--max-channel", type=int, default=None, help="Upper channel limit (default: None)")
+    parser.add_argument("--channels", type=int, nargs="+", default=None, help="Channel IDs to plot (>= 32)")
     parser.add_argument("--rbias", type=float, default=10e3, help="Bias resistance in Ohms (default: 10000)")
     parser.add_argument("--rshunt", type=float, default=250e-6, help="Shunt resistance in Ohms (default: 250e-6)")
     parser.add_argument("--rows", type=int, default=4, help="Grid rows per page (default: 4)")
@@ -339,13 +350,13 @@ def main(args_list=None):
 
     print(f"Comparing Ites vs Ibias between:\n  File 1 ({args.label1}): {args.file1}\n  File 2 ({args.label2}): {args.file2}")
 
-    # Determine channels < 32
+    # Determine channels >= min_channel
     if args.channels is None:
-        ch1 = get_active_channels(args.file1, max_channel=args.max_channel)
-        ch2 = get_active_channels(args.file2, max_channel=args.max_channel)
+        ch1 = get_active_channels(args.file1, min_channel=args.min_channel, max_channel=args.max_channel)
+        ch2 = get_active_channels(args.file2, min_channel=args.min_channel, max_channel=args.max_channel)
         channels = sorted(list(set(ch1).union(set(ch2))))
     else:
-        channels = [ch for ch in args.channels if ch < args.max_channel]
+        channels = [ch for ch in args.channels if (args.min_channel is None or ch >= args.min_channel) and (args.max_channel is None or ch <= args.max_channel)]
 
     # 1. Ites vs Ibias comparison plot
     plot_ites_vs_ibias_comparison(
@@ -358,7 +369,9 @@ def main(args_list=None):
         Rshunt=args.rshunt,
         rows=args.rows,
         cols=args.cols,
-        save_path=args.save
+        save_path=args.save,
+        min_channel=args.min_channel,
+        max_channel=args.max_channel
     )
 
     # 2. Ites1 - Ites2 difference plot
@@ -372,7 +385,9 @@ def main(args_list=None):
         Rshunt=args.rshunt,
         rows=args.rows,
         cols=args.cols,
-        save_path=args.save
+        save_path=args.save,
+        min_channel=args.min_channel,
+        max_channel=args.max_channel
     )
 
     # 3. FFT spectrum of SQUID wiggles plot
@@ -384,7 +399,9 @@ def main(args_list=None):
         Rshunt=args.rshunt,
         rows=args.rows,
         cols=args.cols,
-        save_path=args.save
+        save_path=args.save,
+        min_channel=args.min_channel,
+        max_channel=args.max_channel
     )
 
     if not args.no_show:
