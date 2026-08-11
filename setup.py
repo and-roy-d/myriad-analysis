@@ -8,6 +8,8 @@ setup(
         'console_scripts': [
             'analyze_arcs = arc_analysis.analyze_arcs:main',
             'analyze-arcs = arc_analysis.analyze_arcs:main',
+            'compare_r_vs_p = iv_ic_analysis.compare_r_vs_p:main',
+            'compare-rvsp = iv_ic_analysis.compare_r_vs_p:main',
         ],
     },
 )

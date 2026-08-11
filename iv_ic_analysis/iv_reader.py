@@ -16,6 +16,7 @@ warnings.filterwarnings('ignore', message='invalid value encountered in scalar d
 
 
 phi0 = scipy.constants.value(u"mag. flux quantum")
+min_SI = 240.72e-12  # Default SQUID mutual inductance SI value
 
 plt.rcParams['font.size'] = 16
 
@@ -749,8 +750,7 @@ if __name__ == "__main__":
 
         rbias_value =   1980  
         Rshunt_value =  250e-6
-        Rn_estimate = 0.01 
-        global min_SI
+        Rn_estimate = 0.01
 
         # ----------------------------------------------------
         # ANALYZE CHIP A

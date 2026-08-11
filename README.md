@@ -10,10 +10,14 @@ Install the package in editable mode or as a library:
 pip install -e .
 ```
 
-After installation, the `analyze_arcs` CLI command will be available globally from your terminal.
+After installation, the CLI commands `analyze_arcs` and `compare_r_vs_p` will be available globally from your terminal:
 
 ```bash
+# Run resonator arc analysis
 analyze_arcs --folder 20241216_123456 --fset fset1 --basepath /data
+
+# Compare R vs P curves between two IV files
+compare_r_vs_p
 ```
 
 ## Directory Structure
@@ -26,7 +30,7 @@ myriad-analysis/
 │   └── analyze_complexZ*.py
 ├── tes_models/             # TES Thermal & Fitting Models (MDT, Sherpa fitters, viewers)
 ├── thermal_conductance/    # Thermal Conductance (G) & Alpha/Beta Sensitivity Analysis
-├── iv_ic_analysis/         # IV Curves & Critical Current (Ic) Measurements
+├── iv_ic_analysis/         # IV Curves, Critical Current & R vs P Comparison (compare_r_vs_p.py)
 ├── laser_analysis/         # Laser Peak Fitting & Beam Profile Deconvolution
 ├── noise_and_pulses/       # Noise Analysis, Pulse Viewer & Resolution vs Bias
 ├── nonlinearity/           # Detector Nonlinearity Plotters
@@ -53,7 +57,7 @@ Contains thermal model definitions (simple, compound, intervening, dangling ther
 Analyzes power vs. temperature curves to extract thermal conductance ($G = \frac{dP}{dT}$), $T_c$, and sensitivity parameters ($\alpha, \beta$).
 
 ### 5. IV & Ic Analysis (`iv_ic_analysis/`)
-Tools for taking, parsing, and plotting current-voltage (IV) curves, extracting $I_c$, $R_n$, and superconducting-to-normal transitions.
+Tools for taking, parsing, and plotting current-voltage (IV) curves, extracting $I_c$, $R_n$, superconducting-to-normal transitions, and comparing $R$ vs $P$ curves (`compare_r_vs_p.py`). Installed as CLI entry point `compare_r_vs_p`.
 
 ### 6. Laser Analysis (`laser_analysis/`)
 Peak finding, multi-Gaussian fitting of laser spectra, and deconvolution of laser beam spatial profiles.
@@ -69,7 +73,7 @@ Maps readout channels to physical resonator locations on multiplexed detector ch
 Subdirectories are structured as Python packages. Modules can be imported directly within Python:
 
 ```python
-from arc_analysis.analyze_arcs import main as run_arc_analysis
+from iv_ic_analysis.compare_r_vs_p import plot_r_vs_p_comparison
 from iv_ic_analysis.iv_reader import get_ites_from_iv_curve
-from tes_models.SherpaFitModels import MultiGauss
+from arc_analysis.analyze_arcs import main as run_arc_analysis
 ```
