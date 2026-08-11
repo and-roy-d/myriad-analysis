@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "myriad-analysis"
+version = "0.1.0"
+description = "Analysis tools for TES detectors, complex impedance, thermal conductance, uMUX resonators, and arc analysis."
+authors = [{ name = "Myriad Analysis Authors" }]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pandas"
+]
+
+[project.scripts]
+analyze_arcs = "arc_analysis.analyze_arcs:main"
+analyze-arcs = "arc_analysis.analyze_arcs:main"
+
+[tool.setuptools.packages.find]
+where = ["."]

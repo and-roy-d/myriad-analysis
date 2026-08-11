@@ -10,8 +10,8 @@ phi0 = scipy.constants.value(u"mag. flux quantum")
 
 def load_noise_file(filename):
     f = np.load(filename, allow_pickle=True)
-    psd = f['Pxx'].item()[162005088]
-    freqs = f['f'].item()[162005088]
+    psd = next(iter(f['Pxx'].item().values()))
+    freqs = next(iter(f['f'].item().values()))
     return psd, freqs
 
 def phi0_to_amp(x):
@@ -97,14 +97,14 @@ def compare_noise_spectra(datasets, channels=None, yval='flux'):
 
 if __name__=="__main__":
     rbias= 741 #1965.4
-    f_nyq = 125e3 / 2
+    f_nyq = 250e3 / 2
     Rsh = 250e-6
     Rn_fixed = 6.75e-3
 
-    good_channels = np.arange(31)
-    plot_multiple_channels(filename = 'noise_20250915_115242_20mK_vbias_0v0.npz',
-                           good_channels=good_channels)
-    # filenames = ['noise_20250219_145647_20mK_bias0v0_.npz', #0% Rn
+    good_channels = np.arange(16)
+    # plot_multiple_channels(filename = 'noise_20250915_115242_20mK_vbias_0v0.npz',
+    #                        good_channels=good_channels)
+    # # filenames = ['noise_20250219_145647_20mK_bias0v0_.npz', #0% Rn
     #              'noise_20250219_153221_20mK_bias0v236_.npz', #4.5%
     #              'noise_20250219_155858_20mK_bias0v237_.npz', #4.7%
     #              'noise_20250219_151955_20mK_bias0v239_.npz', #5% Rn
@@ -212,7 +212,15 @@ if __name__=="__main__":
 
     datasets = [{"filename": "noise_20250917_100304_20mK_vbias_0v0.npz", "label": " 20 mK, unbiased"},
                 {"filename": "noise_20250917_142330_20mK_vbias_0v8.npz" , "label": " 20 mK, 0.8 V"},]
+    
+    datasets = [{"filename": "noise_20260626_125340_20mK_bias0v0.npz", "label": "20mK, unbiased"},
+                {"filename": "noise_20260626_130640_40mK_bias0v0.npz", "label": "40mK, unbiased"},
+                {"filename": "noise_20260626_134049_50mK_vbias1v0.npz", "label": "40mK, 1V"}] 
 
+    datasets = [{"filename": "noise_20260702_153245_biased-0.3V-20mK-sidec.npz", "label": "20mK, biased"},
+                {"filename": "noise_20260702_145734_unbiased-20mK-sidec.npz", "label": "20mK, unbiased"},]
 
-    compare_noise_spectra(datasets, channels=[21,23], yval='current')
+    compare_noise_spectra(datasets, channels=[9,11], yval='current')
+    plot_multiple_channels(filename = datasets[0]["filename"],
+                           good_channels=good_channels)
     plt.show()

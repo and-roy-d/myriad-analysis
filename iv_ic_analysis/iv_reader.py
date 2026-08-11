@@ -17,7 +17,33 @@ warnings.filterwarnings('ignore', message='invalid value encountered in scalar d
 
 phi0 = scipy.constants.value(u"mag. flux quantum")
 
-plt.rcParams['font.size'] = 14
+plt.rcParams['font.size'] = 16
+
+PIXEL_CELL_MAP = {
+    1: '20um_3sq_SC',        2: '20um_3sq_SC',        3: '20um_3sq_SC',
+    4: '20um_3sq_SC_E',      5: '20um_3sq_SC_E',      6: '20um_3sq_SC_E',
+    7: '20um_3sq_SC_150',    8: '20um_3sq_SC_150',
+    9: '20um_3sq_SC_150_E', 10: '20um_3sq_SC_150_E',
+   11: '20um_2sq_SC',       12: '20um_2sq_SC',
+   13: '20um_2sq_SC_E',     14: '20um_2sq_SC_E',
+   15: '20um_3sq_barr_SC',  16: '20um_3sq_barr_SC',  17: '20um_3sq_barr_SC',
+   18: '20um_3sq_barr_SC_E',19: '20um_3sq_barr_SC_E',20: '20um_3sq_barr_SC_E',
+   21: '20um_2sq_barr_SC',  22: '20um_2sq_barr_SC',
+   23: '20um_2sq_barr_SC_E',24: '20um_2sq_barr_SC_E'
+}
+
+CELL_COLOR_MAP = {
+    '20um_3sq_SC':        '#1f77b4',  # Dark Blue
+    '20um_3sq_SC_E':      '#72b7e0',  # Light Blue
+    '20um_3sq_SC_150':    '#2ca02c',  # Dark Green
+    '20um_3sq_SC_150_E':  '#8ae08a',  # Light Green
+    '20um_2sq_SC':        '#ff7f0e',  # Dark Orange
+    '20um_2sq_SC_E':      '#ffbb78',  # Light Orange
+    '20um_3sq_barr_SC':   '#d62728',  # Dark Red
+    '20um_3sq_barr_SC_E': '#ff9896',  # Light Red
+    '20um_2sq_barr_SC':   '#9467bd',  # Dark Purple
+    '20um_2sq_barr_SC_E': '#c5b0d5'   # Light Purple
+}
 
 
 
@@ -232,7 +258,7 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
          print("Warning: No channel IDs provided for plotting.")
          return # Nothing to plot
 
-    fig, axes = plt.subplots(1, 3, figsize=(30, 10))  # 1 row, 3 columns
+    fig, axes = plt.subplots(1, 3, figsize=(18, 8.5))  # Taller aspect ratio for slide shows
 
     try:
         with np.load(npz_file) as data:
@@ -268,6 +294,8 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
 
             # --- Loop through specified channels ---
             plotted_any = False
+            max_x_val = 0.0
+            max_ites_val = 0.0
             for channel_id in channel_ids:
                 if not 0 <= channel_id < num_channels_in_file:
                     print(f"Warning: Channel {channel_id} is out of range (0-{num_channels_in_file - 1}) in '{os.path.basename(npz_file)}'. Skipping.")
@@ -284,25 +312,48 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
                 ptes = Ptes(ibias, ites, Rshunt)
                 vtes = ites*rtes
 
+                # Track peak values
+                max_ites_val = max(max_ites_val, np.max(ites) * 1e3)
+                idx_peak = np.argmax(ites)
+                x_peak = xdata[idx_peak] * x_scale
+                if x_peak > max_x_val:
+                    max_x_val = x_peak
+
                 # Use pixel map if available, otherwise fall back to channel
+                suffix_chip = "chipA" if channel_ids[0] < 32 else "chipB"
                 try:
                     if channel_id in pixel_map:
-                        plot_label = f"{pixel_map[channel_id]} (Ch {channel_id})"
+                        pixel_num = int(pixel_map[channel_id])
+                        cell_name = PIXEL_CELL_MAP.get(pixel_num, "Unknown")
+                        label_name = cell_name
+                        if suffix_chip == "chipB":
+                            label_name = cell_name.replace("20um_", "30um_")
+                        color = CELL_COLOR_MAP.get(cell_name, 'gray')
                     else:
-                        plot_label = f"Ch {channel_id}"
+                        label_name = f"Ch {channel_id}"
+                        color = 'gray'
                 except NameError:
-                    plot_label = f"Ch {channel_id}"
+                    label_name = f"Ch {channel_id}"
+                    color = 'gray'
+
+                # Only add unique cell geometries to the legend to avoid overfilling
+                if 'added_labels_set' not in locals():
+                    added_labels_set = set()
+                if label_name not in added_labels_set:
+                    plot_label = label_name
+                    added_labels_set.add(label_name)
+                else:
+                    plot_label = ""
 
                 # --- Plotting for the current channel ---
                 # Ites vs. X Plot
-                axes[0].plot(xdata * x_scale, ites * 1e3, label=plot_label)
-
+                axes[0].plot(xdata * x_scale, ites * 1e3, color=color, label=plot_label, lw=2.0)
 
                 # Rtes vs. X Plot
-                axes[1].plot(xdata * x_scale, rtes * 1e3, label=plot_label)
+                axes[1].plot(xdata * x_scale, rtes * 1e3, color=color, label=plot_label, lw=2.0)
 
                 # Ptes vs. X Plot
-                axes[2].plot( ptes*1e12, rtes * 1e3,  label=plot_label)
+                axes[2].plot( ptes*1e12, rtes * 1e3, color=color, label=plot_label, lw=2.0)
 
                 plotted_any = True # Mark that at least one channel was plotted
 
@@ -310,7 +361,6 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
                 try:
                     if channel_id in pixel_map:
                         label_text = pixel_map[channel_id]
-                        print(label_text)
                     else:
                         label_text = str(channel_id)
                 except NameError:
@@ -320,8 +370,8 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
                     xy=(xdata[0]*x_scale, rtes[0] * 1e3),  # endpoint in plot units
                     xytext=(5, 0),  # small offset to the right
                     textcoords="offset points",
-                    color=axes[2].lines[-1].get_color(),  # match line color
-                    fontsize=10,
+                    color=color,  # match line color
+                    fontsize=9,
                     ha="left",
                     va="center"
                 )
@@ -330,8 +380,8 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
                     xy=(ptes[0] * 1e12, rtes[0] * 1e3),  # endpoint in plot units
                     xytext=(5, 0),  # small offset to the right
                     textcoords="offset points",
-                    color=axes[2].lines[-1].get_color(),  # match line color
-                    fontsize=10,
+                    color=color,  # match line color
+                    fontsize=9,
                     ha="left",
                     va="center"
                 )
@@ -343,35 +393,40 @@ def plot_iv_and_rtes_vs_ibias(npz_file, rbias, channel_ids,
 
             # --- Plot Settings (applied once after loop) ---
             # Ites plot settings
-            axes[0].plot(xdata * x_scale, xdata * y_scale, 'k--') # line at x=y for MI check
-            axes[0].set_xlabel(xlabel)
-            axes[0].set_ylabel(r"Ites (mA)")
-            axes[0].set_title(f"Ites vs. {xlabel.split(' ')[0]}") # Use Vbias or Ibias
-            axes[0].legend(title = 'Pixel # (Channel ID)', ncol=2)
-            axes[0].grid(True)
+            axes[0].plot(xdata * x_scale, xdata * y_scale, 'k--', lw=1.5, label='MI Line') # line at x=y for MI check
+            axes[0].set_xlabel(xlabel, fontweight='bold')
+            axes[0].set_ylabel(r"Ites (mA)", fontweight='bold')
+            axes[0].set_title(f"Ites vs. {xlabel.split(' ')[0]}", fontweight='bold')
+            axes[0].legend(fontsize=10, loc='best')
+            # Zoom in y-axis of leftmost plot to just above Ites peak, keeping x-limits same
+            if max_ites_val > 0.0:
+                axes[0].set_ylim(0, 1.15 * max_ites_val)
+            axes[0].grid(True, ls=':', alpha=0.6)
 
             # Rtes plot settings
-            axes[1].set_xlabel(xlabel)
-            axes[1].set_ylabel(r"Rtes (m$\Omega$)")
-            axes[1].set_title(f"Rtes vs. {xlabel.split(' ')[0]}")
-            # Plot fixed Rn line if specified (only once)
-            if Rn_fixed is not None:
-                # axes[1].axhline(y=Rn_fixed * 1e3, color='grey', linestyle='--', label=f'$R_n$={Rn_fixed*1e3:.2f} mΩ')
-                # Need to call legend again if axhline added a label
-                axes[1].legend(title = 'Pixel # (Channel ID)', ncol=2)
-            else:
-                 axes[1].legend(title = 'Pixel # (Channel ID)', ncol=2)
-            axes[1].grid(True)
+            axes[1].set_xlabel(xlabel, fontweight='bold')
+            axes[1].set_ylabel(r"Rtes (m$\Omega$)", fontweight='bold')
+            axes[1].set_title(f"Rtes vs. {xlabel.split(' ')[0]}", fontweight='bold')
+            axes[1].legend(fontsize=10, loc='best')
+            axes[1].grid(True, ls=':', alpha=0.6)
 
             # Ptes plot settings
-            axes[2].set_xlabel("Ptes (pW)")
-            axes[2].set_ylabel("Rtes (mΩ)")
-            axes[2].set_title(f"Ptes vs. Rtes")
-            axes[2].legend(title = 'Pixel # (Channel ID)', ncol=2)
-            axes[2].grid(True)
+            axes[2].set_xlabel("Ptes (pW)", fontweight='bold')
+            axes[2].set_ylabel("Rtes (mΩ)", fontweight='bold')
+            axes[2].set_title(f"Ptes vs. Rtes", fontweight='bold')
+            axes[2].legend(fontsize=10, loc='best')
+            axes[2].grid(True, ls=':', alpha=0.6)
 
-            plt.suptitle(f"IV Characteristics from {os.path.basename(npz_file)}", fontsize=16)
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust layout for suptitle
+            plt.suptitle(f"IV Characteristics from {os.path.basename(npz_file)}", fontsize=18, fontweight='bold')
+            
+            # Remove excessive whitespace: adjust layout and spacing
+            plt.subplots_adjust(wspace=0.18)
+            plt.tight_layout(rect=[0.02, 0.03, 0.98, 0.93])
+            
+            # Save the figure with dynamic suffix
+            suffix = "chipA" if channel_ids[0] < 32 else "chipB"
+            os.makedirs("C:/Users/anr29/Downloads/aroy/Cooldown-B8/iv-analysis", exist_ok=True)
+            plt.savefig(f"C:/Users/anr29/Downloads/aroy/Cooldown-B8/iv-analysis/iv_and_rtes_vs_ibias_{suffix}.png", dpi=200)
 
 
     except FileNotFoundError:
@@ -467,7 +522,7 @@ def plot_ptes_vs_rtes(npz_file, rbias, channel_ids,
             axes.plot(ptes*1e12, rtes * 1e3, label=plot_label, color= 'k', alpha=0.6)
             try:
                 label_text = pixel_map[channel_id]
-            except NameError:
+            except KeyError:
                 label_text = f"Ch {channel_id}"
             axes.annotate(
                 label_text,
@@ -507,6 +562,11 @@ def plot_ptes_vs_rtes(npz_file, rbias, channel_ids,
         axes.set(xlim=(0,8),ylim=(0,30))
         # axes.legend(title = 'Pixel # (Channel ID)', ncol=2)
         axes.grid(True)
+        
+        # Save the figure with dynamic suffix
+        suffix = "chipA" if channel_ids[0] < 32 else "chipB"
+        os.makedirs("C:/Users/anr29/Downloads/aroy/Cooldown-B8/iv-analysis", exist_ok=True)
+        plt.savefig(f"C:/Users/anr29/Downloads/aroy/Cooldown-B8/iv-analysis/ptes_vs_rtes_{suffix}.png", dpi=200)
 
 def plot_iv_curves_subplots(npz_file, rbias, channels_to_ignore=None, correct_shift = True, y_unit = 'flux'):
     """
@@ -602,9 +662,15 @@ def plot_iv_curves_subplots(npz_file, rbias, channels_to_ignore=None, correct_sh
                 fig.delaxes(axes_flat[k])
 
             # Add overall labels and title
-            fig.suptitle(f"IV Curves from {os.path.basename(npz_file)} (Y-Unit: {y_unit})", fontsize=16)
-            fig.text(0.5, 0.02, 'Bias Current (mA)', ha='center', va='bottom', fontsize=12)
-            fig.text(0.02, 0.5, ylabel, ha='left', va='center', rotation='vertical', fontsize=12)
+            fig.suptitle(f"IV Curves from {os.path.basename(npz_file)} (Y-Unit: {y_unit})", fontsize=20, fontweight='bold')
+            fig.text(0.5, 0.02, 'Bias Current (mA)', ha='center', va='bottom', fontsize=16, fontweight='bold')
+            fig.text(0.02, 0.5, ylabel, ha='left', va='center', rotation='vertical', fontsize=16, fontweight='bold')
+            
+            # Save the figure with dynamic suffix
+            active_channels = [c for c in range(67) if channels_to_ignore is None or c not in channels_to_ignore]
+            suffix = "chipA" if len(active_channels) > 0 and active_channels[0] < 32 else "chipB"
+            os.makedirs("C:/Users/anr29/Downloads/aroy/Cooldown-B8/iv-analysis", exist_ok=True)
+            plt.savefig(f"C:/Users/anr29/Downloads/aroy/Cooldown-B8/iv-analysis/iv_curves_subplots_{suffix}.png", dpi=200)
 
     except FileNotFoundError:
         # Already handled at the start, but good practice
@@ -653,104 +719,93 @@ def get_ites_from_iv_curve(iv_npz_file, rbias, channel_id, correct_shift=True):
 
 
 if __name__ == "__main__":
-    # Select the desired NPZ file
-    # filename = '20250303_120801_iv.npz'
-    # filename = '20250303_160513_iv.npz' # 0.05 V steps from 0 -10 V, at 24 mK
-    # filename = '20250310_095239_iv.npz'
-    # filename = '20250317_094341_iv.npz'
-    # filename = '20250317_134432_iv.npz' # 21mK
-    filename = '20250415_130100_iv.npz' # Example: Using the latest filename
-    # filename = '20250428_153918_iv.npz'
-    # filename = '20250516_154203_iv.npz'
-    filename = '20250910_151201_iv.npz' #25 mK Cooldown A26
-    filename = '20250908_164544_iv_40.0mK.npz'
-    filename = "20250908_164544_iv_77.0mK.npz"
-    filename = "20250915_112054_iv.npz"
-    filename = "20250915_170216_iv_90.0mK.npz"
-    # filename = "20250313_171937_iv_0.1K.npz"
-    # filename = '20250917_143936_iv.npz'
-    # filename = '20250304_105630_iv.npz' # at 60 mK
+    filename = "C:/Users/anr29/Downloads/ravendata-dtest62/iv/20260709_155350_iv_IV_20.0mK.npz"
 
-    # Example: channel to pixel map umux2Mv1.0 cooldown A26
-    # pixel_map = {
-    #     2: "23",
-    #     3: "22",
-    #     4: "20",
-    #     5: "18",
-    #     7: "14",
-    #     8: "12",
-    #     9: "10",
-    #     11: "6",
-    #     12: "4",
-    #     13: "2",
-    #     14: "",
-    #     18: "24",
-    #     19: "21",
-    #     21: "17",
-    #     22: "15",
-    #     23: "13",
-    #     24: "11",
-    #     25: "7",
-    #     26: "5",
-    #     27: "3",
-    #     28: "1"
-    # }
-    pixel_map = {0:"25", 1:"23", 2: "21", 3: "19", 4: "17", 5: "15", 6: "13", 7: "11", 8: "9", 9: "7", 10: "5", 11: "3", 12: "1",
-                 17: "24", 18: "22", 19: "20", 20: "18", 21: "16", 22: "14", 23: "12", 24: "10", 25: "8", 26: "6", 27: "4", 28: "2"} #umux17a side 1 cooldown A27
+    # Define pixel maps
+    PIXEL_MAP_A = {
+         2: "23",  3: "21",  4: "19",  5: "17",  6: "15",  7: "13",
+         8: "11",  9:  "9", 10:  "7", 11:  "5", 12:  "3", 13:  "1",
+        18: "24", 19: "22", 20: "20", 21: "18", 22: "16", 23: "14",
+        24: "12", 25: "10", 26:  "8", 27:  "6", 28:  "4", 29:  "2",
+    }
+    PIXEL_MAP_B = {
+        36: "23", 37: "21", 38: "19", 39: "17", 40: "15", 41: "13",
+        42: "11", 43:  "9", 44:  "7", 45:  "5", 46:  "3", 47:  "1",
+        52: "24", 53: "22", 54: "20", 55: "18", 56: "16", 57: "14",
+        58: "12", 59: "10", 60:  "8", 61:  "6", 62:  "4", 63:  "2",
+    }
+    
     try:
-        date_str = filename.split('_')[0]
-        npz_file = f'/data/{date_str}/iv/{filename}'
-        # npz_file = f'/data/harpy_data/{date_str}/iv/{filename}'
+        if os.path.isabs(filename):
+            npz_file = filename
+        else:
+            date_str = filename.split('_')[0]
+            npz_file = f'/data/{date_str}/iv/{filename}'
 
-        # Check if the constructed file path exists
-        if not os.path.exists(npz_file):
-             print(f"Error: Constructed file path does not exist: {npz_file}")
-             # Optionally, exit or try a default path
-             # exit()
-             # Or maybe try a known location:
-             # npz_file = './' + filename # Search in current directory
-             # if not os.path.exists(npz_file):
-             #    print(f"Error: File not found in current directory either: {filename}")
-             #    exit()
+        # Filter active channels based on signal variance
+        data = np.load(npz_file)
+        std_ang2 = np.std(data['ang2'], axis=0)
+        good_channels = std_ang2 > 0.05
 
-
-        rbias_value =   1965.4  #741 was used in CooldownA27 for Chip C (higher Tc, needed more bias current)
+        rbias_value =   1980  
         Rshunt_value =  250e-6
-        min_SI =   180.5e-12  #249.5e-12
-        Rn_estimate = 0.006 # Example fixed Rn in Ohms
+        Rn_estimate = 0.01 
+        global min_SI
 
+        # ----------------------------------------------------
+        # ANALYZE CHIP A
+        # ----------------------------------------------------
+        print("\n=== Analyzing Chip A ===")
+        pixel_map = PIXEL_MAP_A
+        min_SI = 240.72e-12  # Calibrated min_SI for Chip A
+        channels_a = [ch for ch in PIXEL_MAP_A.keys() if good_channels[ch] and ch not in [11, 23, 27, 28]]
+        exclude_a = [c for c in range(67) if c not in channels_a]
 
-        channels_to_analyze = [2, 3,4,5, 7, 8,9,12, 14, 19,21,22,23, 24, 25, 26, 27, 28]# 19, 21,22,23,24,26,27,28, 29] # Example list of channels cooldown A26
-
-        channels_to_exclude = [0,5, 6,9,10,13,14,15,16,19, 20,27, 28,29,30]
-        # channels_to_exclude = []
-        channels_to_analyze = [x for x in range(31) if x not in channels_to_exclude]
-        print(f"\nPlotting Ites, Rtes, Ptes for channels {channels_to_analyze}...")
+        print(f"Plotting Ites, Rtes, Ptes for Chip A channels {channels_a}...")
         plot_iv_and_rtes_vs_ibias(npz_file,
                                   rbias=rbias_value,
-                                  channel_ids=channels_to_analyze, # Pass the list here
+                                  channel_ids=channels_a, 
                                   Rshunt=Rshunt_value,
                                   Rn_fixed=Rn_estimate,
-                                  xaxis='ibias') # Choose 'vbias' or 'ibias'
+                                  xaxis='ibias') 
 
-
-        channels_to_exclude = [20,27] # Example channel to ignore
-        print(f"\nPlotting individual IV curves (excluding channels {channels_to_exclude})...")
+        print(f"Plotting individual IV curves for Chip A...")
         plot_iv_curves_subplots(npz_file,
                                 rbias=rbias_value,
-                                channels_to_ignore=channels_to_exclude,
+                                channels_to_ignore=exclude_a,
                                 correct_shift=True,
-                                y_unit='current') # Choose 'current' or 'flux'
-        plot_ptes_vs_rtes(npz_file,rbias=rbias_value,channel_ids=channels_to_analyze, Rshunt=Rshunt_value,)
+                                y_unit='current') 
+        
+        plot_ptes_vs_rtes(npz_file, rbias=rbias_value, channel_ids=channels_a, Rshunt=Rshunt_value)
 
+        # ----------------------------------------------------
+        # ANALYZE CHIP B
+        # ----------------------------------------------------
+        print("\n=== Analyzing Chip B ===")
+        pixel_map = PIXEL_MAP_B
+        min_SI = 238.5e-12  # Calibrated min_SI for Chip B
+        channels_b = [ch for ch in PIXEL_MAP_B.keys() if good_channels[ch] and ch != 42] # Drop pixel 11
+        exclude_b = [c for c in range(67) if c not in channels_b]
 
-        plt.show()
+        print(f"Plotting Ites, Rtes, Ptes for Chip B channels {channels_b}...")
+        plot_iv_and_rtes_vs_ibias(npz_file,
+                                  rbias=rbias_value,
+                                  channel_ids=channels_b, 
+                                  Rshunt=Rshunt_value,
+                                  Rn_fixed=Rn_estimate,
+                                  xaxis='ibias') 
 
-    except IndexError:
-        print(f"Error: Could not parse date from filename '{filename}'. Ensure format is YYYYMMDD_*.npz")
-    except FileNotFoundError:
-         # This case is specifically handled above now, but good to have redundancy
-         print(f"Error: File not found during execution: {npz_file}")
+        print(f"Plotting individual IV curves for Chip B...")
+        plot_iv_curves_subplots(npz_file,
+                                rbias=rbias_value,
+                                channels_to_ignore=exclude_b,
+                                correct_shift=True,
+                                y_unit='current') 
+        
+        plot_ptes_vs_rtes(npz_file, rbias=rbias_value, channel_ids=channels_b, Rshunt=Rshunt_value)
+
+        print("\nAll plots saved to Cooldown-B8/iv-analysis/!")
+
     except Exception as e:
         print(f"An unexpected error occurred in the main execution block: {e}")
         import traceback

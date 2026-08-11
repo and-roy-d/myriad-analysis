@@ -12,7 +12,13 @@ import re
 import sys
 
 # Import necessary functions for IV curve reading
-from iv_reader import convert_ang2_to_ites, convert_vbias_to_ibias, get_ites_from_iv_curve
+try:
+    from iv_ic_analysis.iv_reader import convert_ang2_to_ites, convert_vbias_to_ibias, get_ites_from_iv_curve
+except ModuleNotFoundError:
+    repo_root = Path(__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from iv_ic_analysis.iv_reader import convert_ang2_to_ites, convert_vbias_to_ibias, get_ites_from_iv_curve
 
 # NaN ignored in processing step
 warnings.filterwarnings('ignore', message='invalid value encountered in divide')

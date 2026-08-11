@@ -5,8 +5,16 @@ import matplotlib.pyplot as plt
 from sherpa.data import Data1D, Data1DInt
 from sherpa.stats import LeastSq, Cash, Chi2, CStat
 from sherpa.fit import Fit
-from sherpa.optmethods import LevMar
-from SherpaFitModels import MultiGauss, MultiGaussGauss
+import sys
+from pathlib import Path
+
+try:
+    from tes_models.SherpaFitModels import MultiGauss, MultiGaussGauss
+except ModuleNotFoundError:
+    repo_root = Path(__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from tes_models.SherpaFitModels import MultiGauss, MultiGaussGauss
 from sherpa.plot import ModelPlot, FitPlot, DataPlot
 import time
 from scipy.signal import find_peaks
