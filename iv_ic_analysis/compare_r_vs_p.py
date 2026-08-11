@@ -81,8 +81,8 @@ def get_active_channels(filepath, threshold=0.05, max_channel=32):
     return channels
 
 
-def plot_r_vs_p_comparison(file1, file2, channels=None, label1="sample rate = 244 kHz", label2="rate = 122 kHz",
-                           rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None, show_plot=True):
+def plot_r_vs_p_comparison(file1, file2, channels=None, label1="sample rate ~ 244 kHz", label2="sample rate ~ 122 kHz",
+                           rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None):
     """
     Plots R vs P subplots comparing file1 and file2 for each channel (up to channel 31).
     """
@@ -138,12 +138,9 @@ def plot_r_vs_p_comparison(file1, file2, channels=None, label1="sample rate = 24
             plt.savefig(out_file, dpi=200)
             print(f"Saved R vs P comparison plot to: {out_file}")
 
-    if show_plot:
-        plt.show()
 
-
-def plot_r_vs_p_difference(file1, file2, channels=None, label1="sample rate = 244 kHz", label2="rate = 122 kHz",
-                           rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None, show_plot=True):
+def plot_r_vs_p_difference(file1, file2, channels=None, label1="sample rate ~ 244 kHz", label2="sample rate ~ 122 kHz",
+                           rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None):
     """
     Plots R_file1 - R_file2 vs P subplots for each channel (< 32).
     """
@@ -211,11 +208,8 @@ def plot_r_vs_p_difference(file1, file2, channels=None, label1="sample rate = 24
             plt.savefig(out_file, dpi=200)
             print(f"Saved Delta R plot to: {out_file}")
 
-    if show_plot:
-        plt.show()
 
-
-def plot_r_vs_p_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None, show_plot=True):
+def plot_r_vs_p_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-6, rows=4, cols=4, save_path=None):
     """
     Computes and plots Fourier Transform (FFT) power spectra of ΔR(P) to identify periods and harmonics of wiggles.
     """
@@ -310,9 +304,6 @@ def plot_r_vs_p_fft(file1, file2, channels=None, rbias=10e3, Rshunt=250e-6, rows
             plt.savefig(out_file, dpi=200)
             print(f"Saved FFT spectrum plot to: {out_file}")
 
-    if show_plot:
-        plt.show()
-
 
 def main(args_list=None):
     parser = argparse.ArgumentParser(
@@ -322,8 +313,8 @@ def main(args_list=None):
 
     parser.add_argument("--file1", type=str, default=def_f1, help="Path to first IV .npz file")
     parser.add_argument("--file2", type=str, default=def_f2, help="Path to second IV .npz file")
-    parser.add_argument("--label1", type=str, default="sample rate = 244 kHz", help="Legend label for File 1")
-    parser.add_argument("--label2", type=str, default="rate = 122 kHz", help="Legend label for File 2")
+    parser.add_argument("--label1", type=str, default="sample rate ~ 244 kHz", help="Legend label for File 1")
+    parser.add_argument("--label2", type=str, default="sample rate ~ 122 kHz", help="Legend label for File 2")
     parser.add_argument("--max-channel", type=int, default=32, help="Upper channel limit (default: 32)")
     parser.add_argument("--channels", type=int, nargs="+", default=None, help="Channel IDs to plot (< 32)")
     parser.add_argument("--rbias", type=float, default=10e3, help="Bias resistance in Ohms (default: 10000)")
@@ -363,8 +354,7 @@ def main(args_list=None):
         Rshunt=args.rshunt,
         rows=args.rows,
         cols=args.cols,
-        save_path=args.save,
-        show_plot=not args.no_show
+        save_path=args.save
     )
 
     # 2. R1 - R2 difference plot
@@ -378,8 +368,7 @@ def main(args_list=None):
         Rshunt=args.rshunt,
         rows=args.rows,
         cols=args.cols,
-        save_path=args.save,
-        show_plot=not args.no_show
+        save_path=args.save
     )
 
     # 3. FFT spectrum of wiggles plot
@@ -391,9 +380,11 @@ def main(args_list=None):
         Rshunt=args.rshunt,
         rows=args.rows,
         cols=args.cols,
-        save_path=args.save,
-        show_plot=not args.no_show
+        save_path=args.save
     )
+
+    if not args.no_show:
+        plt.show()
 
 
 if __name__ == "__main__":
